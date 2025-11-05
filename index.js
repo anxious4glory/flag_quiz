@@ -10,6 +10,9 @@ dotenv.config();
 app.set("view engine", "ejs");
 
 const db = new pg.Client({
+  ssl: {
+    rejectUnauthorized: false, // required for Render
+  },
   user: process.env.DB_USER,
   password: String(process.env.DB_PASSWORD),
   host: process.env.DB_HOST,
