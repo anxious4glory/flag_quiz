@@ -2,12 +2,23 @@ import express from "express";
 import bodyParser from "body-parser";
 import dotenv from "dotenv";
 import pg from "pg";
+import fs from "fs";
+import csv from "csv-parser";
 
 dotenv.config();
 const app = express();
 const port = 3000;
 
 app.set("view engine", "ejs");
+
+fs.createReadStream("flags.csv")
+  .pipe(csv())
+  .on("data", async (row) => {
+    await db.query("INSERT INTO flags (name, flag) VALUES ($1, $2)", [row.name, row.flag]);
+  })
+  .on("end", () => {
+    console.log("✅ CSV import completed!");
+  });
 
 const db = new pg.Client({
   connectionString: process.env.DATABASE_URL,
