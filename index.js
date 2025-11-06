@@ -11,15 +11,6 @@ const port = 3000;
 
 app.set("view engine", "ejs");
 
-fs.createReadStream("flags.csv")
-  .pipe(csv())
-  .on("data", async (row) => {
-    await db.query("INSERT INTO flags (name, flag) VALUES ($1, $2)", [row.name, row.flag]);
-  })
-  .on("end", () => {
-    console.log("✅ CSV import completed!");
-  });
-
 const db = new pg.Client({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
@@ -30,6 +21,16 @@ const db = new pg.Client({
 });
 
 await db.connect();
+
+
+fs.createReadStream("flags.csv")
+  .pipe(csv())
+  .on("data", async (row) => {
+    await db.query("INSERT INTO flags (name, flag) VALUES ($1, $2)", [row.name, row.flag]);
+  })
+  .on("end", () => {
+    console.log("✅ CSV import completed!");
+  });
 
 let totalCorrect = 0;
 let currentQuestion = {};
