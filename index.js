@@ -9,42 +9,44 @@ dotenv.config();
 const app = express();
 const port = 3000;
 
-app.set("view engine", "ejs");
-
+// --- Initialize database first ---
 const db = new pg.Client({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
-  user: process.env.DB_USER,
-  password: String(process.env.DB_PASSWORD),
-  port: process.env.DB_PORT,
-  database: process.env.DB_NAME,
 });
 
 await db.connect();
+console.log("✅ Connected to PostgreSQL");
 
-
+// --- Import CSV only after DB connects ---
 fs.createReadStream("flags.csv")
   .pipe(csv())
   .on("data", async (row) => {
-    await db.query("INSERT INTO flags (name, flag) VALUES ($1, $2)", [row.name, row.flag]);
+    try {
+      await db.query("INSERT INTO flags (name, flag) VALUES ($1, $2)", [row.name, row.flag]);
+    } catch (err) {
+      // Ignore duplicates
+      if (!err.message.includes("duplicate")) console.error("Insert error:", err.message);
+    }
   })
   .on("end", () => {
     console.log("✅ CSV import completed!");
   });
 
-let totalCorrect = 0;
-let currentQuestion = {};
-
+// --- Express setup ---
+app.set("view engine", "ejs");
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
-// function to get one random question from DB
+let totalCorrect = 0;
+let currentQuestion = {};
+
 async function nextQuestion() {
   const result = await db.query("SELECT * FROM flags ORDER BY RANDOM() LIMIT 1");
   currentQuestion = result.rows[0];
 }
 
-// home page
+// --- Home route ---
 app.get("/", async (req, res) => {
   totalCorrect = 0;
   await nextQuestion();
@@ -56,7 +58,7 @@ app.get("/", async (req, res) => {
   res.render("index.ejs", { question: currentQuestion });
 });
 
-// form submission
+// --- Submit route ---
 app.post("/submit", async (req, res) => {
   const answer = req.body.answer?.trim().toLowerCase();
   let isCorrect = false;
